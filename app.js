@@ -1,31 +1,16 @@
-const {
-    load
-} = require('cheerio');
-const cheerio = require('cheerio');
-const got = require('got');
 const request = require('request');
 
-// const url = 'https://www.binance.com/en/trade/BTC_BUSD';
-
 let prices = [];
-let emoji = '';
+let emoji;
 let netChange = 0;
+let color;
 
-// const loadPage = () => {
-//     got(url).then(res => {
-//         const $ = cheerio.load(res.body);
-//         $('.css-8t380c').each((i, el) => {
-//             console.log('RAN');
-//             console.log(i, el);
-//         })
-//     }).catch(err => console.log('err: ', err));
-// }
-
-// loadPage();
+const FOREX = 1.25;
+const PRICE_INT = 10000;
 
 setInterval(() => {
     getPrice();
-}, 3000)
+}, PRICE_INT)
 
 const getPrice = () => {
     request.get('https://www.bitstamp.net/api-internal/market/tickers/', {},
@@ -45,24 +30,52 @@ const getPrice = () => {
             } else {
                 prices = [...prices, price]
                 if (price > lastPrice) {
-                    netChange = price - lastPrice;
+                    let _netChange = price - lastPrice
+                    netChange = (_netChange / lastPrice).toFixed(4);
                     emoji = '🚀🟢🚀';
+                    color = '65280';
                 } else {
-                    netChange = price - lastPrice;
+                    let _netChange = price - lastPrice;
+                    netChange = ((_netChange / lastPrice) * -1).toFixed(4);
                     emoji = '🏴‍☠️🔴🏴‍☠️';
+                    color = '16711680';
                 }
                 await postPriceToDisc(price);
             }
-            console.table(prices);
         })
 }
 
 const postPriceToDisc = async (price) => {
+    let _priceCAD = price * FOREX;
+    let _price = _priceCAD.toFixed(2);
     price = price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    request.post('https://discord.com/api/webhooks/811002933289418833/ssuqiQeqQwAkEdksYeR0YPAAe-bHV0aUWfaeb6A_CEbO96KEP-8Zi5lxQYZHvyFgsVAs', {
+    priceCAD = _price.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+    // let content = `${emoji} **💲${price}** / **💲${priceCAD}** ${netChange}% ${emoji}`;
+    request.post('https://discordapp.com/api/webhooks/821211543593156638/B58FaDO9eS5AgKG5dEPSN5CVMEXFvy1dd9P0nfpVi39qtK3IuCJo7IKFR8Sc-Vcf1OEv', {
         json: {
-            content: `${emoji} **💲${price}** **(💲${netChange.toFixed(2)})** ${emoji}`
-        }
+            "embeds": [{
+            "title": "Bitcoin",
+            "color": color,
+            "fields": [
+            {
+                "name": "USD",
+                "value": `**💲${price}**`,
+                "inline": true
+            },
+            {
+                "name": "CAD",
+                "value": `**💲${priceCAD}**`,
+                "inline": true
+            },
+            {
+                "name": "Percentage Change",
+                "value": `**💲${netChange}%**`,
+                "inline": false
+            }
+            ]
+        }]
+        },
+
     }, (err, res, body) => {
         if (err) {
             console.log(err);
